@@ -49,6 +49,7 @@ namespace MessageBroker
                     {
                          foreach (var client in listOfSubscribers)
                          {
+                              text = FormatText( text);
                               connectionService.SendMessage(client.IpAddress, client.Port, text);
                          }
                     }

@@ -734,11 +734,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Anastasia\\Desktop\\Projects\\MessageBroker\\Publisher\\Publisher.csproj",
+      "projectUniqueName": "C:\\Users\\Anastasia\\Desktop\\MessageBroker\\Publisher\\Publisher.csproj",
       "projectName": "Publisher",
-      "projectPath": "C:\\Users\\Anastasia\\Desktop\\Projects\\MessageBroker\\Publisher\\Publisher.csproj",
+      "projectPath": "C:\\Users\\Anastasia\\Desktop\\MessageBroker\\Publisher\\Publisher.csproj",
       "packagesPath": "C:\\Users\\Anastasia\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Anastasia\\Desktop\\Projects\\MessageBroker\\Publisher\\obj\\",
+      "outputPath": "C:\\Users\\Anastasia\\Desktop\\MessageBroker\\Publisher\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"

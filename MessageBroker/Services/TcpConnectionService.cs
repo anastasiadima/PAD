@@ -26,6 +26,7 @@ namespace MessageBroker.Services
           ManualResetEvent allDone = new ManualResetEvent(false);
           private IMessageHub messageHub;
           private MessageHandler messageHandler;
+          private List<Tuple<string, int, string>> tupleSocketList = new List<Tuple<string, int, string>>();
 
           public void Connect()
           {
@@ -35,7 +36,7 @@ namespace MessageBroker.Services
                listener.Bind(localEndPoint);
                listener.Listen(10);
                messageHub = new MessageHub();
-                messageHandler = new MessageHandler(clientRoomRepository, socketRepository, new TcpConnectionService(), messageRepository);
+                messageHandler = new MessageHandler(clientRoomRepository, socketRepository, this, messageRepository);
                messageHub.RegisterGlobalHandler((type, message) => { messageHandler.Publish(type, message); });
                publisher = new Publisher(messageHub);
                this.Socket = listener;
@@ -63,8 +64,9 @@ namespace MessageBroker.Services
                Socket handler = socket.EndAccept(asyncResult);
                string ipAddress = handler.RemoteEndPoint.ToString();
 
-               SocketList.Add(handler);
+               SocketList.Add( handler);
                Console.WriteLine("Connected {0}", handler);
+               _buffer = new byte[1024];
                handler.BeginReceive(_buffer, 0, bufferSize, 0, new AsyncCallback(ReadCallback), handler);
           }
 
@@ -79,6 +81,7 @@ namespace MessageBroker.Services
 
                ChooseScopeofMessage(text, handler);
                //handler.Close();
+               //_buffer = new byte[1024];
                handler.BeginReceive(_buffer, 0, bufferSize, 0, new AsyncCallback(ReadCallback), handler);
           }
 
@@ -111,6 +114,7 @@ namespace MessageBroker.Services
           private void SendCorespondingMessages(Socket socket)
           {
                RoomSubscriber roomSubscriber = new RoomSubscriber(messageHub);
+               CheckSocket(socket);
                roomSubscriber.GetMessages();
           }
 
@@ -124,7 +128,7 @@ namespace MessageBroker.Services
                try
                {
                     Message messageObject = JsonConvert.DeserializeObject<Message>(messageJson);
-                    messageObject = messageHandler.SaveMessage(messageObject);
+                    //messageObject = messageHandler.SaveMessage(messageObject);
                     publisher.Publish(messageObject);
                }
                catch (Exception e)
@@ -147,6 +151,7 @@ namespace MessageBroker.Services
                     if (clientroomid != 0)
                     {
                          clientRoomRepository.Delete(clientroomid);
+                         clientRoomRepository.Save();
                     }
                }
           }
@@ -166,16 +171,42 @@ namespace MessageBroker.Services
                Socket socket = new Socket(remoteService.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                try
                {
+                    foreach (var s in SocketList)
+                    {
+                         Tuple<int, string> getDetails = GetIpAddress((Socket)s);
+                         if (getDetails.Item1 == port && getDetails.Item2 == ipAddress)
+                         {
+                              var socketT = (Socket)s;
+                              var buffer = Encoding.ASCII.GetBytes(message);
+                              socketT.Send(buffer);
+                         }
+                    }
                     socket.BeginConnect(remoteService, new AsyncCallback(ConnectCallback), socket);
                     if (socket.Connected)
                     {
                          var buffer = Encoding.ASCII.GetBytes(message);
                          socket.Send(buffer);
                     }
+                    else
+                    {
+                         tupleSocketList.Add(new Tuple<string, int, string>(ipAddress, port, message));
+                    }
                }
                catch (Exception e)
                {
-                    Console.WriteLine(e.Message);
+                    tupleSocketList.Add(new Tuple<string, int, string>(ipAddress, port, message));
+               }
+          }
+
+          public void CheckSocket(Socket socket)
+          {
+               var details = GetIpAddress(socket);
+               foreach (var item in tupleSocketList)
+               {
+                    if (item.Item1 == details.Item2 && item.Item2 == details.Item1)
+                    {
+                         SendMessage(item.Item1, item.Item2, item.Item3);
+                    }
                }
           }
 
@@ -196,8 +227,7 @@ namespace MessageBroker.Services
                     //connectDone.Set();
                }
                catch (Exception e)
-               {
-                    Console.WriteLine(e.ToString());
+               { 
                }
           }
 
