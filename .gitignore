@@ -1,0 +1,6 @@
+.vs/
+MessageBroker/bin/
+MessageBroker/obj/
+Client/obj/
+MessageBrokerApp/obj/
+Client/bin/
