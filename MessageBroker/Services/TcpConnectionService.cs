@@ -28,6 +28,18 @@ namespace MessageBroker.Services
           private MessageHandler messageHandler;
           private List<Tuple<string, int, string>> tupleSocketList = new List<Tuple<string, int, string>>();
 
+          public class StateObject
+          {
+               // Client  socket.  
+               public Socket workSocket = null;
+               // Size of receive buffer.  
+               public const int BufferSize = 1024;
+               // Receive buffer.  
+               public byte[] buffer = new byte[BufferSize];
+               // Received data string.  
+               public StringBuilder sb = new StringBuilder();
+          }
+
           public void Connect()
           {
                IPAddress ipAddress = IPAddress.Any;
@@ -36,7 +48,7 @@ namespace MessageBroker.Services
                listener.Bind(localEndPoint);
                listener.Listen(10);
                messageHub = new MessageHub();
-                messageHandler = new MessageHandler(clientRoomRepository, socketRepository, this, messageRepository);
+               messageHandler = new MessageHandler(clientRoomRepository, socketRepository, this, messageRepository);
                messageHub.RegisterGlobalHandler((type, message) => { messageHandler.Publish(type, message); });
                publisher = new Publisher(messageHub);
                this.Socket = listener;
@@ -66,23 +78,27 @@ namespace MessageBroker.Services
 
                SocketList.Add( handler);
                Console.WriteLine("Connected {0}", handler);
-               _buffer = new byte[1024];
-               handler.BeginReceive(_buffer, 0, bufferSize, 0, new AsyncCallback(ReadCallback), handler);
+               StateObject state = new StateObject();
+               state.workSocket = handler; 
+               handler.BeginReceive(state.buffer, 0, bufferSize, 0, new AsyncCallback(ReadCallback), state);
           }
 
           private void ReadCallback(IAsyncResult asyncResult)
           {
-               Socket handler = (Socket)asyncResult.AsyncState;
-               int bytesToRead = handler.EndReceive(asyncResult); 
-               byte[] receiveBuffer = new byte[bytesToRead];
-               Array.Copy(_buffer, receiveBuffer, bytesToRead);
-               string text = Encoding.ASCII.GetString(receiveBuffer);
-               Console.WriteLine(text);
+               StateObject state = (StateObject)asyncResult.AsyncState;
+               Socket handler = state.workSocket;
+               int bytesToRead = handler.EndReceive(asyncResult);
 
-               ChooseScopeofMessage(text, handler);
-               //handler.Close();
-               //_buffer = new byte[1024];
-               handler.BeginReceive(_buffer, 0, bufferSize, 0, new AsyncCallback(ReadCallback), handler);
+               if (bytesToRead > 0)
+               {
+                    string text = Encoding.ASCII.GetString(state.buffer, 0, bytesToRead);
+                    Console.WriteLine(text);
+                    byte[] receiveBuffer = new byte[bytesToRead];
+                    ChooseScopeofMessage(text, handler);
+
+                    handler.BeginReceive(state.buffer, 0, bufferSize, 0, new AsyncCallback(ReadCallback), state);
+               }
+               
           }
 
           private void ChooseScopeofMessage(string text, Socket socket)
@@ -94,6 +110,9 @@ namespace MessageBroker.Services
                }
                else if (text == "GetRooms")
                {
+                    Tuple<int, string> socketDetails = GetIpAddress(socket);
+                    var roomSubscriber = new RoomSubscriber(this.messageHub);
+                    roomSubscriber.GetSubscribedRooms(socketDetails);
                     SendSubscribedRooms(socket);
                }
                else if (text.Length >= 11 && text.Substring(0, 11) == "UnSubscribe")
@@ -139,7 +158,6 @@ namespace MessageBroker.Services
 
           public void UnsubscribeRoom(RoomType roomType, Socket socket)
           {
-
                SocketModel socketModel = generateSocketModel(roomType, socket);
                var id = socketRepository.GetSocketId(socketModel.Port, socketModel.IpAddress);
                if (id != 0)
@@ -165,6 +183,7 @@ namespace MessageBroker.Services
 
                return socketModel;
           }
+
           public void SendMessage(string ipAddress, int port, string message)
           {
                IPEndPoint remoteService = new IPEndPoint(IPAddress.Parse(ipAddress), port);
@@ -214,20 +233,20 @@ namespace MessageBroker.Services
           {
                try
                {
-                    // Retrieve the socket from the state object.  
                     Socket client = (Socket)ar.AsyncState;
 
-                    // Complete the connection.  
-                    client.EndConnect(ar);
+                    if (client.Connected)
+                    {
+                         // Complete the connection.  
+                         client.EndConnect(ar);
 
-                    Console.WriteLine("Socket connected to {0}",
-                        client.RemoteEndPoint.ToString());
-
-                    // Signal that the connection has been made.  
-                    //connectDone.Set();
+                         Console.WriteLine("Socket connected to {0}",
+                         client.RemoteEndPoint.ToString());
+                    }
                }
                catch (Exception e)
-               { 
+               {
+                    Console.WriteLine(e.Message);
                }
           }
 
@@ -272,7 +291,10 @@ namespace MessageBroker.Services
           }
           public void SubscribeToRoom(RoomType roomType, Socket socket)
           {
+               RoomSubscriber roomSubscriber = new RoomSubscriber(this.messageHub);
                SocketModel socketModel = generateSocketModel(roomType, socket);
+
+               roomSubscriber.Subscribe(roomType, socketModel);
                var modelId = socketRepository.GetSocketId(socketModel.Port, socketModel.IpAddress);
                if (modelId == 0)
                {
@@ -313,15 +335,8 @@ namespace MessageBroker.Services
                          }
                     }
                }
-               var buffer = Encoding.ASCII.GetBytes(result);
-               //socket.BeginSend(buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback(SendCallback), socket);
-               var sendBytes = socket.Send(buffer);
-               byte[] _buffer = new byte[bufferSize]; 
-
-               if (sendBytes > 0)
-               {
-                    socket.BeginReceive(_buffer, 0, bufferSize, 0, new AsyncCallback(ReadCallback), socket);
-               }
+               var buffer = Encoding.ASCII.GetBytes(result); 
+               var sendBytes = socket.Send(buffer); 
           }
      }
 }

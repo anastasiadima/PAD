@@ -1,4 +1,6 @@
 ﻿using MessageBroker.Interfaces;
+using System;
+using System.Net.Sockets;
 
 namespace MessageBroker.Models
 {
@@ -21,9 +23,14 @@ namespace MessageBroker.Models
                messageHub.Unsubscribe(id);
           }
 
-          public void Subscribe(RoomType roomType)
+          public void Subscribe(RoomType roomType, SocketModel socketModel)
           {
-              // messageHub.Subscribe(roomType);
+              //messageHub.Subscribe(roomType, socketModel);
+          }
+          
+          public void GetSubscribedRooms(Tuple<int, string> tuple)
+          {
+               //this.messageHub.
           }
      }
 }

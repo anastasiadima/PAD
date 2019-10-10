@@ -20,7 +20,6 @@ namespace MessageBroker.Models
           public void Dispose()
           { 
           }
-
           public void Publish()
           {
 
@@ -39,9 +38,9 @@ namespace MessageBroker.Models
                _globalHandler = onMessage;
           }
 
-          public void Subscribe()
+          public void Subscribe(RoomType roomType, SocketModel socketModel)
           {
-
+               //_globalHandler?.Invoke(roomType, socketModel);
           }
 
           public void Subscribe<T>(Action<T> action)

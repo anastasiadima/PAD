@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MessageBroker.Models;
+using System;
 
 namespace MessageBroker.Interfaces
 {
@@ -35,5 +36,6 @@ namespace MessageBroker.Interfaces
           void Unsubscribe(int id);
 
           void Connect();
+          void Subscribe(RoomType roomType, SocketModel model);
      }
 }

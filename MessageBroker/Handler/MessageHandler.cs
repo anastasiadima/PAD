@@ -2,6 +2,7 @@
 using MessageBroker.Models;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace MessageBroker
@@ -49,11 +50,16 @@ namespace MessageBroker
                     {
                          foreach (var client in listOfSubscribers)
                          {
-                              text = FormatText( text);
+                              text = FormatText(text);
                               connectionService.SendMessage(client.IpAddress, client.Port, text);
                          }
                     }
                }
+          }
+
+          internal void Subscribe(RoomType roomType, SocketModel socketModel)
+          {
+
           }
 
           private string FormatText(string input)
@@ -71,9 +77,7 @@ namespace MessageBroker
                {
                     for (int i = 0; i < dicCorect.GetLength(0); i++)
                     {
-                         Console.WriteLine(input1vec[j]);
                          input1vec[j] = Regex.Replace(input1vec[j], dicCorect[i, 0], dicCorect[i, 1]);
-                         Console.WriteLine(input1vec[j]);
                     }
                }
 
@@ -85,6 +89,43 @@ namespace MessageBroker
           internal Message SaveMessage(Message messageObject)
           {
                 return this.messageRepository.Insert(messageObject);
+          }
+
+          public void GetSubscribedRooms(Tuple<int, string> socketDetails)
+          {
+               var socketModelId = socketRepository.GetSocketId(socketDetails.Item1, socketDetails.Item2);
+               string result = "";
+               if (socketModelId == 0)
+               {
+                    var model = new SocketModel();
+                    model.IpAddress = socketDetails.Item2;
+                    model.Port = socketDetails.Item1;
+                    model = socketRepository.Insert(model);
+                    socketModelId = model.Id;
+                    result = "No subscribed rooms";
+               }
+
+               if (socketModelId != 0)
+               {
+                    IList<RoomType> listOfRooms = clientRoomRepository.GetRoomsForClientId(socketModelId);
+                    if (listOfRooms != null && listOfRooms.Count > 0)
+                    {
+                         result = "You are subscribed to the rooms: ";
+
+                         foreach (var item in listOfRooms)
+                         {
+                              result += item.ToString();
+                              result += " ";
+                         }
+                    }
+               }
+               var buffer = Encoding.ASCII.GetBytes(result);
+              // var sendBytes = socket.Send(buffer);
+          }
+
+          public void SubscribeToRoom()
+          {
+
           }
      }
 }
